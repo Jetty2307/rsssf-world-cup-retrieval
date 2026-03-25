@@ -1,0 +1,11 @@
+{query : "Who won the World Cup in 1998 and had number 10 on his shirt? Answer only from the provided context. \
+        Reply with a name and a surname. If you don't know the answer from the context, \
+        just say that you don't know.",
+ answer : "Zinedine Zidane"},
+
+{query : "Who won the World Cup in 1998? Answer only from the provided context. \
+        If you don't know the answer from the context, just say that you don't know.",
+ answer : "France"},
+
+
+
