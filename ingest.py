@@ -238,7 +238,7 @@ def extract_squad_rows(block):
         if reserve_mode:
             continue
 
-        parsed = parse_squad_line(stripped)
+        parsed = parse_squad_line(stripped, block["year"])
         if not parsed:
             continue
 
@@ -264,7 +264,7 @@ def extract_squad_rows(block):
     return rows
 
 
-def parse_squad_line(line: str):
+def parse_squad_line(line: str, reference_year: int | None = None):
     if "coach" not in line.lower() and not BIRTHDATE_RE.search(line):
         return None
 
@@ -282,7 +282,7 @@ def parse_squad_line(line: str):
     if not person_name:
         return None
 
-    birthdate = parse_birthdate(birthdate_match)
+    birthdate = parse_birthdate(birthdate_match, reference_year)
     tail = line[birthdate_match.end():].strip()
 
     height_cm = None
@@ -315,10 +315,18 @@ def parse_squad_line(line: str):
     }
 
 
-def parse_birthdate(match):
+def parse_birthdate(match, reference_year: int | None = None):
     day = int(match.group(1))
     month = int(match.group(2))
-    year = 1900 + int(match.group(3))
+    year_suffix = int(match.group(3))
+
+    if reference_year is None:
+        year = 1900 + year_suffix
+    else:
+        year = (reference_year // 100) * 100 + year_suffix
+        if year > reference_year:
+            year -= 100
+
     return date(year, month, day)
 
 
