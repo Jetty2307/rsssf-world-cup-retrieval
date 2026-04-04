@@ -183,6 +183,28 @@ def insert_document(cur, html_path: Path, args, title: str):
     return cur.fetchone()[0]
 
 
+def delete_existing_document(cur, html_path: Path, source_url):
+    html_path_str = str(html_path)
+
+    if source_url:
+        cur.execute(
+            """
+            delete from documents
+            where source_path = %s or source_url = %s
+            """,
+            (html_path_str, source_url),
+        )
+        return
+
+    cur.execute(
+        """
+        delete from documents
+        where source_path = %s
+        """,
+        (html_path_str,),
+    )
+
+
 def insert_blocks(cur, document_id: int, blocks):
     inserted_blocks = []
     for block in blocks:
@@ -264,7 +286,7 @@ def extract_squad_rows(block):
     return rows
 
 
-def parse_squad_line(line: str, reference_year: int | None = None):
+def parse_squad_line(line: str, reference_year: int):
     if "coach" not in line.lower() and not BIRTHDATE_RE.search(line):
         return None
 
@@ -315,7 +337,7 @@ def parse_squad_line(line: str, reference_year: int | None = None):
     }
 
 
-def parse_birthdate(match, reference_year: int | None = None):
+def parse_birthdate(match, reference_year: int):
     day = int(match.group(1))
     month = int(match.group(2))
     year_suffix = int(match.group(3))
@@ -403,6 +425,7 @@ def main():
     try:
         with conn:
             with conn.cursor() as cur:
+                delete_existing_document(cur, html_path, args.source_url)
                 document_id = insert_document(cur, html_path, args, title)
                 inserted_blocks = insert_blocks(cur, document_id, blocks)
                 squad_rows = []
