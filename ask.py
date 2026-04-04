@@ -3,6 +3,7 @@ import json
 
 from rag import ask_rag
 from router import route_question
+from sql_executor import execute_sql_route
 
 
 def parse_args():
@@ -25,20 +26,21 @@ def main():
     print(json.dumps(route, ensure_ascii=False, indent=2))
     print()
 
-    target_table = route.get("target_table")
-
-    if target_table != "blocks":
-        print("Execution for this route is not implemented yet.")
+    try:
+        if route.get("needs_sql"):
+            result = execute_sql_route(args.question, route)
+        else:
+            result = ask_rag(
+                query=args.question,
+                year=route.get("year"),
+                team=route.get("team"),
+                competition=route.get("competition"),
+                llm_provider=args.llm_provider,
+                llm_model=args.llm_model,
+            )
+    except Exception as exc:
+        print(f"Execution failed: {exc}")
         return
-
-    result = ask_rag(
-        query=args.question,
-        year=route.get("year"),
-        team=route.get("team"),
-        competition=route.get("competition"),
-        llm_provider=args.llm_provider,
-        llm_model=args.llm_model,
-    )
 
     print("=== answer ===")
     print(result["answer"])
