@@ -13,6 +13,10 @@ YEAR_HEADING_RE = re.compile(r"^\s*(\d{4})\s+(.+?)\s*$")
 BIRTHDATE_RE = re.compile(r"\b(\d{2})\.(\d{2})\.(\d{2})\b")
 HEIGHT_WEIGHT_RE = re.compile(r"\b(\d{3})/(\d{2,3})\b")
 LEADING_SHIRT_RE = re.compile(r"^\s*\(?(\d+)\)?\s+")
+FINAL_LINE_RE = re.compile(
+    r"^\s*(\d{4})\s+(.+?)\s+(\d+-\d+)\s+(.+?)(?:\s{2,}(.+))?\s*$"
+)
+HOST_LINE_RE = re.compile(r"Final tournament in (.+)")
 
 
 def parse_args():
@@ -138,6 +142,8 @@ def infer_competition(text_content: str, default_competition=None):
 
 
 def get_connection():
+    load_dotenv()
+
     dsn = os.getenv("DATABASE_URL")
     if dsn:
         return psycopg2.connect(dsn)
@@ -397,6 +403,108 @@ def insert_squads(cur, squad_rows):
         )
 
 
+def extract_competition_results(text: str, block_id: int):
+    section = extract_finals_section(text)
+    if not section:
+        return []
+
+    lines = [line.rstrip() for line in section.splitlines() if line.strip()]
+    results = []
+    i = 0
+
+    while i < len(lines):
+        match = FINAL_LINE_RE.match(lines[i])
+        if not match:
+            i += 1
+            continue
+
+        year = int(match.group(1))
+        winner = normalize_whitespace(match.group(2))
+        final_score = match.group(3)
+        runner_up = normalize_whitespace(match.group(4))
+        notes = normalize_whitespace(match.group(5) or "")
+
+        host = None
+        if i + 1 < len(lines):
+            host_match = HOST_LINE_RE.search(lines[i + 1])
+            if host_match:
+                host = normalize_whitespace(host_match.group(1))
+                if "]" in host:
+                    host = host.split("]", 1)[0].strip()
+
+        metadata = {}
+        if notes:
+            metadata["notes"] = notes
+        metadata["source_section"] = "Finals"
+
+        results.append(
+            {
+                "block_id": block_id,
+                "competition": "World Cup",
+                "season_label": str(year),
+                "year": year,
+                "winner": winner,
+                "runner_up": runner_up,
+                "host": host,
+                "final_score": final_score,
+                "metadata": metadata,
+            }
+        )
+        i += 2
+
+    return results
+
+
+def extract_finals_section(text: str):
+    start_marker = "Finals"
+    end_marker = "Quarterfinals and Beyond"
+
+    start = text.find(start_marker)
+    if start == -1:
+        return None
+
+    end = text.find(end_marker, start)
+    if end == -1:
+        return text[start:]
+
+    return text[start:end]
+
+
+def normalize_whitespace(value: str) -> str:
+    return " ".join(value.split())
+
+
+def insert_competition_results(cur, result_rows):
+    for row in result_rows:
+        cur.execute(
+            """
+            insert into competition_results (
+                block_id,
+                competition,
+                season_label,
+                year,
+                winner,
+                runner_up,
+                host,
+                final_score,
+                metadata
+            )
+            values (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb)
+            """,
+            (
+                row["block_id"],
+                row["competition"],
+                row["season_label"],
+                row["year"],
+                row["winner"],
+                row["runner_up"],
+                row["host"],
+                row["final_score"],
+                json_dumps(row["metadata"]),
+            ),
+        )
+
+
 def json_dumps(payload):
     import json
 
@@ -432,12 +540,20 @@ def main():
                 for block in inserted_blocks:
                     squad_rows.extend(extract_squad_rows(block))
                 insert_squads(cur, squad_rows)
+                competition_result_rows = []
+                if inserted_blocks:
+                    competition_result_rows = extract_competition_results(
+                        text,
+                        inserted_blocks[0]["id"],
+                    )
+                insert_competition_results(cur, competition_result_rows)
     finally:
         conn.close()
 
     print(
         f"Inserted document_id={document_id} with {len(blocks)} blocks "
-        f"and {len(squad_rows)} squad rows from {html_path}"
+        f"and {len(squad_rows)} squad rows and {len(competition_result_rows)} competition result rows "
+        f"from {html_path}"
     )
 
 

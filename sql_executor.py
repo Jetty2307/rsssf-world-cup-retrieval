@@ -84,7 +84,7 @@ def build_sql(operation, route):
             where team ilike %s and year = %s and shirt_number = %s
             order by person_name
             """,
-            [f"%{team}%", year, shirt_number, year, shirt_number],
+            [f"%{team}%", year, shirt_number],
         )
 
     if operation == "coach_by_team_year":
