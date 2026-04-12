@@ -38,6 +38,14 @@ def select_operation(question, route):
 
     if target_table == "competition_results":
         time_relation = (route.get("time_relation") or "").lower()
+        if "score" in lowered or "final score" in lowered or "result" in lowered:
+            return "final_score_by_year"
+        if "host" in lowered or "hosted" in lowered:
+            return "host_by_year"
+        if "most" in lowered and ("titles" in lowered or "won" in lowered or "champion" in lowered):
+            return "title_count_by_team"
+        if "twice" in lowered or "two times" in lowered or "multiple" in lowered:
+            return "multiple_titles"
         if time_relation in {"last", "latest"}:
             return "latest_competition_year"
         if time_relation in {"first", "earliest"}:
@@ -137,6 +145,32 @@ def build_sql(operation, route):
             [f"%{competition}%", year],
         )
 
+    if operation == "final_score_by_year":
+        require_fields(route, "year")
+        return (
+            """
+            select competition, year, winner, runner_up, final_score
+            from competition_results
+            where competition ilike %s and year = %s
+            order by year
+            limit 1
+            """,
+            [f"%{competition}%", year],
+        )
+
+    if operation == "host_by_year":
+        require_fields(route, "year")
+        return (
+            """
+            select competition, year, host
+            from competition_results
+            where competition ilike %s and year = %s
+            order by year
+            limit 1
+            """,
+            [f"%{competition}%", year],
+        )
+
     if operation == "latest_competition_year":
         return (
             """
@@ -157,6 +191,32 @@ def build_sql(operation, route):
             where competition ilike %s and year is not null
             order by year asc
             limit 1
+            """,
+            [f"%{competition}%"],
+        )
+
+    if operation == "title_count_by_team":
+        return (
+            """
+            select winner, count(*) as title_count
+            from competition_results
+            where competition ilike %s and winner is not null
+            group by winner
+            order by title_count desc, winner
+            limit 1
+            """,
+            [f"%{competition}%"],
+        )
+
+    if operation == "multiple_titles":
+        return (
+            """
+            select winner, count(*) as title_count
+            from competition_results
+            where competition ilike %s and winner is not null
+            group by winner
+            having count(*) >= 2
+            order by title_count desc, winner
             """,
             [f"%{competition}%"],
         )
@@ -233,6 +293,18 @@ def format_result(operation, rows, route):
             return f"{runner_up} were the runner-up in the {competition} in {year}."
         return f"No runner-up is recorded for the {competition} in {year}."
 
+    if operation == "final_score_by_year":
+        competition, year, winner, runner_up, final_score = rows[0]
+        if final_score:
+            return f"The {competition} final in {year} ended {final_score}: {winner} vs {runner_up}."
+        return f"No final score is recorded for the {competition} in {year}."
+
+    if operation == "host_by_year":
+        competition, year, host = rows[0]
+        if host:
+            return f"The {competition} in {year} was hosted by {host}."
+        return f"No host is recorded for the {competition} in {year}."
+
     if operation == "latest_competition_year":
         competition, year, winner = rows[0]
         if winner:
@@ -244,6 +316,14 @@ def format_result(operation, rows, route):
         if winner:
             return f"The earliest recorded {competition} was in {year}, won by {winner}."
         return f"The earliest recorded {competition} was in {year}."
+
+    if operation == "title_count_by_team":
+        winner, title_count = rows[0]
+        return f"{winner} have the most recorded titles: {title_count}."
+
+    if operation == "multiple_titles":
+        parts = [f"{winner} ({title_count})" for winner, title_count in rows]
+        return "Teams with multiple titles: " + ", ".join(parts)
 
     if operation == "results_between_years":
         parts = []
