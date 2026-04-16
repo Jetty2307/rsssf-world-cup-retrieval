@@ -1,0 +1,8 @@
+{"question":"Who won the World Cup in 1954?","expected_operation":"winner_by_year","expected_answer":"West Germany won the World Cup in 1954."}
+{"question":"Who was runner-up in 1998?","expected_operation":"runner_up_by_year","expected_answer":"Brazil were the runner-up in the World Cup in 1998."}
+{"question":"What was the score in 1998 final?","expected_operation":"final_score_by_year","expected_answer":"The World Cup final in 1998 ended 3-0: France vs Brazil."}
+{"question":"Who hosted the World Cup in 1954?","expected_operation":"host_by_year","expected_answer":"The World Cup in 1954 was hosted by Switzerland."}
+{"question":"When was the last World Cup?","expected_operation":"latest_competition_year","expected_answer":"The latest recorded World Cup was in 2022, won by Argentina."}
+{"question":"Who won the first World Cup?","expected_operation":"earliest_competition_year","expected_answer":"The earliest recorded World Cup was in 1930, won by Uruguay."}
+{"question":"Which team won the most World Cups?","expected_operation":"title_count_by_team","expected_answer":"Brazil have the most recorded titles: 5."}
+{"question":"Who became champion twice?","expected_operation":"multiple_titles","expected_answer":"Teams with multiple titles: Brazil (5), Germany (4), Italy (4), Argentina (3), France (2), Uruguay (2)"}

@@ -1,0 +1,5 @@
+{"question":"Who had number 10 in France squad in 1998?","expected_operation":"person_by_shirt_number","expected_answer":"Zinedine Zidane was listed as player, Juventus."}
+{"question":"Who had number 4 for West Germany in 1954?","expected_operation":"person_by_shirt_number","expected_answer":"Hans Bauer was listed as player, Bayern Munchen."}
+{"question":"Who was the coach of West Germany in 1954?","expected_operation":"coach_by_team_year","expected_answer":"Coach: Sepp Herberger"}
+{"question":"Who was in the France squad in 1998?","expected_operation":"squad_by_team_year","expected_answer_contains":"France 1998 squad:"}
+{"question":"Tell me about Zinedine Zidane in the France squad in 1998.","expected_operation":"person_lookup_in_squad","expected_answer_contains":"Zinedine Zidane:"}
