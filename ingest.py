@@ -403,14 +403,25 @@ def insert_squads(cur, squad_rows):
         )
 
 
-def extract_competition_results(text: str, block_id: int):
-    section = extract_finals_section(text)
-    if not section:
+def extract_competition_results(soup: BeautifulSoup, block_id: int):
+    finals_anchor = soup.find("a", attrs={"name": "finals"})
+    if finals_anchor is None:
         return []
 
-    lines = [line.rstrip() for line in section.splitlines() if line.strip()]
+    finals_pre = finals_anchor.find_next("pre")
+    if finals_pre is None:
+        return []
+
+    lines = [line.rstrip() for line in finals_pre.get_text("\n").splitlines() if line.strip()]
+    hosts = []
+    for anchor in finals_pre.find_all("a"):
+        host_match = HOST_LINE_RE.match(anchor.get_text(" ", strip=True))
+        if host_match:
+            hosts.append(normalize_whitespace(host_match.group(1)))
+
     results = []
     i = 0
+    host_index = 0
 
     while i < len(lines):
         match = FINAL_LINE_RE.match(lines[i])
@@ -424,13 +435,8 @@ def extract_competition_results(text: str, block_id: int):
         runner_up = normalize_whitespace(match.group(4))
         notes = normalize_whitespace(match.group(5) or "")
 
-        host = None
-        if i + 1 < len(lines):
-            host_match = HOST_LINE_RE.search(lines[i + 1])
-            if host_match:
-                host = normalize_whitespace(host_match.group(1))
-                if "]" in host:
-                    host = host.split("]", 1)[0].strip()
+        host = hosts[host_index] if host_index < len(hosts) else None
+        host_index += 1
 
         metadata = {}
         if notes:
@@ -453,21 +459,6 @@ def extract_competition_results(text: str, block_id: int):
         i += 2
 
     return results
-
-
-def extract_finals_section(text: str):
-    start_marker = "Finals"
-    end_marker = "Quarterfinals and Beyond"
-
-    start = text.find(start_marker)
-    if start == -1:
-        return None
-
-    end = text.find(end_marker, start)
-    if end == -1:
-        return text[start:]
-
-    return text[start:end]
 
 
 def normalize_whitespace(value: str) -> str:
@@ -543,7 +534,7 @@ def main():
                 competition_result_rows = []
                 if inserted_blocks:
                     competition_result_rows = extract_competition_results(
-                        text,
+                        soup,
                         inserted_blocks[0]["id"],
                     )
                 insert_competition_results(cur, competition_result_rows)
