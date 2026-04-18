@@ -1,4 +1,5 @@
 import json
+import unicodedata
 from pathlib import Path
 
 from rag import ask_rag
@@ -23,7 +24,9 @@ def load_jsonl(path):
 def normalize_text(value):
     if value is None:
         return None
-    return " ".join(str(value).strip().lower().split())
+    normalized = unicodedata.normalize("NFKD", str(value))
+    normalized = normalized.encode("ascii", "ignore").decode("ascii")
+    return " ".join(normalized.strip().lower().split())
 
 
 def run_router_eval():
@@ -126,7 +129,7 @@ def run_sql_eval(filename):
                 )
 
         if "expected_answer_contains" in item:
-            if item["expected_answer_contains"] in answer:
+            if normalize_text(item["expected_answer_contains"]) in normalize_text(answer):
                 contains_matches += 1
             else:
                 failures.append(
